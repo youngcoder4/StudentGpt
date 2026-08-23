@@ -32,8 +32,47 @@
         font-family: Inter, "Segoe UI", sans-serif;
       }
 
+      .page-wrapper {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      .back-button-container {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+      }
+
+      .back-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--text);
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+      }
+
+      .back-btn:hover {
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(148, 163, 184, 0.35);
+        transform: translateY(-2px);
+      }
+
       .auth-shell {
         width: min(460px, calc(100% - 24px));
+        margin-top: 60px;
       }
 
       .auth-card {
@@ -207,44 +246,70 @@
         color: #bfdbfe;
         text-decoration: none;
       }
+
+      @media (max-width: 640px) {
+        .back-button-container {
+          top: 12px;
+          left: 12px;
+        }
+
+        .back-btn {
+          padding: 8px 12px;
+          font-size: 0.85rem;
+        }
+
+        .auth-shell {
+          margin-top: 70px;
+        }
+      }
     </style>
   </head>
   <body>
-    <main class="auth-shell">
-      <div class="auth-card">
-        <div class="brand" aria-label="StudentGPT brand">
-          <span class="brand-mark">S</span>
-          <span>StudentGPT</span>
-        </div>
+    <div class="back-button-container">
+      <a href="./StartMenu.html" class="back-btn">
+        <span>←</span>
+        <span>Back</span>
+      </a>
+    </div>
 
-        <h1>Log in</h1>
-        <p class="auth-subtitle">Access your workspace and continue with your local AI gateway.</p>
-
-        <button type="button" class="social-btn" id="googleSignIn">Continue with Google</button>
-
-        <div class="divider">or continue with email</div>
-
-        <form id="loginForm" novalidate>
-          <div>
-            <label for="email" class="form-label">Email address</label>
-            <input type="email" class="form-control" id="email" placeholder="Enter email" required />
-            <div id="emailError" class="validation-message d-none">You didn't fill out this option.</div>
+    <main class="page-wrapper">
+      <div class="auth-shell">
+        <div class="auth-card">
+          <div class="brand" aria-label="StudentGPT brand">
+            <span class="brand-mark">S</span>
+            <span>StudentGPT</span>
           </div>
 
-          <div class="mt-3">
-            <label for="password" class="form-label">Password</label>
-            <div id="passwordGroup" class="password-group">
-              <input type="password" class="form-control" id="password" placeholder="Password" required />
-              <button class="inline-btn" type="button" id="showPassword" aria-label="Show password">👁</button>
+          <h1>Log in</h1>
+          <p class="auth-subtitle">Access your workspace and continue with your local AI gateway.</p>
+
+          <button type="button" class="social-btn" id="googleSignIn">Continue with Google</button>
+
+          <div class="divider">or continue with email</div>
+
+          <form id="loginForm" novalidate>
+            <div>
+              <label for="email" class="form-label">Email address</label>
+              <input type="email" class="form-control" id="email" placeholder="Enter email" required />
+              <div id="emailError" class="validation-message d-none">You didn't fill out this option.</div>
             </div>
-            <div id="passwordError" class="validation-message d-none">You didn't fill out this option.</div>
-          </div>
 
-          <button type="submit" class="submit-btn">Log in</button>
-          <p id="loginStatus" class="status-message" aria-live="polite"></p>
-        </form>
+            <div class="mt-3">
+              <label for="password" class="form-label">Password</label>
+              <div id="passwordGroup" class="password-group">
+                <input type="password" class="form-control" id="password" placeholder="Password" required />
+                <button class="inline-btn" type="button" id="showPassword" aria-label="Show password">👁</button>
+              </div>
+              <div id="passwordError" class="validation-message d-none">You didn't fill out this option.</div>
+            </div>
 
-        <p class="switch-link">Need an account? <a href="./SignUp.html">Sign up</a></p>
+            <button type="submit" class="submit-btn">Log in</button>
+            <p id="loginStatus" class="status-message" aria-live="polite"></p>
+          </form>
+
+          <p class="switch-link">Need an account? <a href="./SignUp.html">Sign up</a></p>
+          <p class="switch-link">Forgot password? <a href="./ForgetUserPass.html">Reset it here</a></p>
+        </div>
       </div>
     </main>
 
