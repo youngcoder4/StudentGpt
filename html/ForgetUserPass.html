@@ -1,1 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StudentGPT | Reset Password</title>
+    <link rel="stylesheet" href="../bootstrap.css" />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #111827;
+        --panel-soft: rgba(15, 23, 42, 0.9);
+        --line: rgba(148, 163, 184, 0.18);
+        --muted: #94a3b8;
+        --text: #e5edf7;
+        --primary: #3b82f6;
+        --primary-strong: #2563eb;
+        --danger: #f87171;
+        --success: #22c55e;
+        --warning: #eab308;
+      }
 
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background:
+          radial-gradient(circle at top left, rgba(59, 130, 246, 0.28), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(52, 211, 153, 0.16), transparent 30%),
+          #0d1117;
+        color: var(--text);
+        font-family: Inter, "Segoe UI", sans-serif;
+      }
+
+      .auth-shell {
+        width: min(520px, calc(100% - 24px));
+      }
+
+      .auth-card {
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 28px 80px rgba(2, 6, 23, 0.5);
+        padding: 28px 26px 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        margin-bottom: 20px;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #7c3aed, #22c55e);
+        color: #f8fafc;
+        font-weight: 800;
+        box-shadow: 0 8px 22px rgba(124, 58, 237, 0.35);
+      }
+
+      .auth-card h1 {
+        font-size: clamp(1.8rem, 3vw, 2.2rem);
+        letter-spacing: -0.05em;
+        margin-bottom: 18px;
+      }
+
+      .auth-subtitle {
+        color: var(--muted);
+        margin-bottom: 18px;
+        line-height: 1.7;
+      }
+
+      .submit-btn,
+      .inline-btn,
+      .back-btn {
+        border-radius: 12px;
+        font-weight: 600;
+      }
+
+      .submit-btn {
+        width: 100%;
+        background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+        border: none;
+        color: white;
+        padding: 0.9rem 1rem;
+        margin-top: 18px;
+        cursor: pointer;
+      }
+
+      .submit-btn:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+
+      .submit-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .back-btn {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid var(--line);
+        color: var(--text);
+        padding: 0.8rem 1rem;
+        width: 100%;
+        margin-top: 12px;
+        cursor: pointer;
+      }
+
+      .form-label {
+        font-weight: 600;
+      }
+
+      .form-control {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--text);
+        padding: 0.8rem 0.9rem;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .form-control::placeholder {
+        color: #7f8ea3;
+      }
+
+      .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: rgba(15, 23, 42, 0.95);
+      }
+
+      .input-missing {
+        outline: 1px solid var(--danger);
+        outline-offset: 3px;
+      }
+
+      .validation-message {
+        color: #fca5a5;
+        font-weight: 500;
+        margin-top: 10px;
+        font-size: 0.9rem;
+      }
+
+      .shake {
+        animation: shake 0.35s;
+      }
+
+      @keyframes shake {
+        25% { transform: translateX(-8px); }
+        50% { transform: translateX(8px); }
+        75% { transform: translateX(-5px); }
+      }
+
+      .password-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .password-group .form-control {
+        flex: 1;
+      }
+
+      .inline-btn {
+        width: auto;
+        min-width: 52px;
+        padding: 0.8rem 0.9rem;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.25);
+        color: var(--text);
+        cursor: pointer;
+      }
+
+      .status-message {
+        min-height: 24px;
+        margin-top: 14px;
+        font-size: 0.92rem;
+      }
+
+      .text-danger {
+        color: #fca5a5 !important;
+      }
+
+      .text-success {
+        color: #86efac !important;
+      }
+
+      .text-muted {
+        color: var(--muted) !important;
+      }
+
+      .text-warning {
+        color: var(--warning) !important;
+      }
+
+      .switch-link {
+        text-align: center;
+        margin-top: 18px;
+        color: var(--muted);
+      }
+
+      .switch-link a {
+        color: #bfdbfe;
+        text-decoration: none;
+      }
+
+      /* Password Strength Indicator */
+      .password-strength-meter {
+        display: flex;
+        gap: 4px;
+        margin-top: 12px;
+        height: 4px;
+      }
+
+      .strength-bar {
+        flex: 1;
+        background: rgba(148, 163, 184, 0.2);
+        border-radius: 2px;
+        transition: background-color 0.3s ease;
+      }
+
+      .strength-bar.weak {
+        background-color: #f87171;
+      }
+
+      .strength-bar.medium {
+        background-color: var(--warning);
+      }
+
+      .strength-bar.strong {
+        background-color: var(--success);
+      }
+
+      .strength-label {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+        font-size: 0.85rem;
+        align-items: center;
+      }
+
+      .strength-text {
+        font-weight: 600;
+      }
+
+      .strength-text.weak {
+        color: #f87171;
+      }
+
+      .strength-text.medium {
+        color: var(--warning);
+      }
+
+      .strength-text.strong {
+        color: var(--success);
+      }
+
+      /* Password Requirements Checklist */
+      .requirements {
+        margin-top: 14px;
+        font-size: 0.85rem;
+      }
+
+      .requirement {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        color: var(--muted);
+      }
+
+      .requirement.met {
+        color: var(--success);
+      }
+
+      .requirement-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+      }
+
+      /* Section Navigation */
+      .section {
+        display: none;
+      }
+
+      .section.active {
+        display: block;
+      }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        margin: 18px 0 20px;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .code-input-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .code-input {
+        width: 50px;
+        height: 50px;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--text);
+      }
+
+      .code-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: rgba(15, 23, 42, 0.95);
+      }
+
+      .resend-button {
+        color: #bfdbfe;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-decoration: underline;
+        margin-top: 12px;
+      }
+
+      .resend-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .timer {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-top: 8px;
+      }
+
+      .mt-3 {
+        margin-top: 1.5rem;
+      }
+
+      .d-none {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="auth-shell">
+      <div class="auth-card">
+        <div class="brand" aria-label="StudentGPT brand">
+          <span class="brand-mark">S</span>
+          <span>StudentGPT</span>
+        </div>
+
+        <!-- SECTION 1: Email Entry -->
+        <div id="emailSection" class="section active">
+          <h1>Reset Password</h1>
+          <p class="auth-subtitle">Enter your email address and we'll send you a code to reset your password.</p>
+
+          <form id="emailForm" novalidate>
+            <div>
+              <label for="resetEmail" class="form-label">Email address</label>
+              <input type="email" class="form-control" id="resetEmail" placeholder="Enter your email" required />
+              <div id="emailFormError" class="validation-message d-none"></div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="sendCodeBtn">Send Reset Code</button>
+            <p id="emailStatus" class="status-message" aria-live="polite"></p>
+          </form>
+
+          <p class="switch-link">Remember your password? <a href="./Login.html">Log in</a></p>
+        </div>
+
+        <!-- SECTION 2: Code Verification -->
+        <div id="codeSection" class="section">
+          <h1>Verify Code</h1>
+          <p class="auth-subtitle" id="codeSubtitle">Enter the 6-digit code sent to your email.</p>
+
+          <form id="codeForm" novalidate>
+            <div>
+              <label for="code1" class="form-label">Confirmation Code</label>
+              <div class="code-input-group" id="codeInputGroup">
+                <input type="text" class="code-input" id="code1" maxlength="1" placeholder="0" inputmode="numeric" />
+                <input type="text" class="code-input" id="code2" maxlength="1" placeholder="0" inputmode="numeric" />
+                <input type="text" class="code-input" id="code3" maxlength="1" placeholder="0" inputmode="numeric" />
+                <input type="text" class="code-input" id="code4" maxlength="1" placeholder="0" inputmode="numeric" />
+                <input type="text" class="code-input" id="code5" maxlength="1" placeholder="0" inputmode="numeric" />
+                <input type="text" class="code-input" id="code6" maxlength="1" placeholder="0" inputmode="numeric" />
+              </div>
+              <div id="codeError" class="validation-message d-none"></div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="verifyCodeBtn">Verify Code</button>
+            <p id="codeStatus" class="status-message" aria-live="polite"></p>
+
+            <div class="timer" id="timerDisplay"></div>
+            <button type="button" class="resend-button" id="resendBtn" disabled>Resend Code</button>
+          </form>
+
+          <button type="button" class="back-btn" id="backToEmailBtn">Back</button>
+        </div>
+
+        <!-- SECTION 3: New Password -->
+        <div id="passwordSection" class="section">
+          <h1>Create New Password</h1>
+          <p class="auth-subtitle">Create a strong password for your account.</p>
+
+          <form id="newPasswordForm" novalidate>
+            <div>
+              <label for="newPassword" class="form-label">New Password</label>
+              <div class="password-group">
+                <input 
+                  type="password" 
+                  class="form-control" 
+                  id="newPassword" 
+                  placeholder="Enter new password" 
+                  autocomplete="off"
+                  required 
+                />
+                <button class="inline-btn" type="button" id="showNewPassword" aria-label="Show password">👁</button>
+              </div>
+
+              <!-- Password Strength Meter -->
+              <div class="password-strength-meter" id="strengthMeter">
+                <div class="strength-bar"></div>
+                <div class="strength-bar"></div>
+                <div class="strength-bar"></div>
+              </div>
+
+              <div class="strength-label" id="strengthLabel">
+                <span class="strength-text" id="strengthText">-</span>
+              </div>
+
+              <!-- Password Requirements -->
+              <div class="requirements">
+                <div class="requirement" id="req-length">
+                  <div class="requirement-icon" id="req-length-icon">○</div>
+                  <span>At least 8 characters</span>
+                </div>
+                <div class="requirement" id="req-uppercase">
+                  <div class="requirement-icon" id="req-uppercase-icon">○</div>
+                  <span>At least one uppercase letter</span>
+                </div>
+                <div class="requirement" id="req-lowercase">
+                  <div class="requirement-icon" id="req-lowercase-icon">○</div>
+                  <span>At least one lowercase letter</span>
+                </div>
+                <div class="requirement" id="req-number">
+                  <div class="requirement-icon" id="req-number-icon">○</div>
+                  <span>At least one number</span>
+                </div>
+                <div class="requirement" id="req-special">
+                  <div class="requirement-icon" id="req-special-icon">○</div>
+                  <span>At least one special character (!@#$%^&*)</span>
+                </div>
+              </div>
+
+              <div id="passwordError" class="validation-message d-none"></div>
+            </div>
+
+            <div class="mt-3">
+              <label for="confirmPassword" class="form-label">Confirm Password</label>
+              <div class="password-group">
+                <input 
+                  type="password" 
+                  class="form-control" 
+                  id="confirmPassword" 
+                  placeholder="Confirm your password" 
+                  autocomplete="off"
+                  required 
+                />
+                <button class="inline-btn" type="button" id="showConfirmPassword" aria-label="Show password">👁</button>
+              </div>
+              <div id="confirmPasswordError" class="validation-message d-none"></div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="resetPasswordBtn" disabled>Reset Password</button>
+            <p id="passwordStatus" class="status-message" aria-live="polite"></p>
+          </form>
+
+          <button type="button" class="back-btn" id="backToCodeBtn">Back</button>
+        </div>
+
+        <!-- SECTION 4: Success -->
+        <div id="successSection" class="section">
+          <h1>Password Reset Successful</h1>
+          <p class="auth-subtitle">Your password has been successfully reset. You can now log in with your new password.</p>
+
+          <a href="./Login.html" class="submit-btn" style="text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
+            Go to Login
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="../javascript/forgetpass.js"></script>
+  </body>
+</html>
