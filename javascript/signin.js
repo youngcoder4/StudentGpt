@@ -8,6 +8,9 @@ import {
     GoogleAuthProvider,
     onAuthStateChanged,
     reload,
+    setPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence,
     signInWithEmailAndPassword,
     signInWithPopup,
     signOut
@@ -26,6 +29,16 @@ const emailError = document.querySelector("#emailError");
 const passwordError = document.querySelector("#passwordError");
 const passwordGroup = document.querySelector("#passwordGroup");
 const googleSignInButton = document.querySelector("#googleSignIn");
+const rememberMe = document.querySelector("#rememberMe");
+
+// "Keep me signed in" -> local persistence (survives browser restarts).
+// Unchecked -> session persistence (signed out when the tab/browser closes).
+function applyPersistence() {
+    return setPersistence(
+        auth,
+        rememberMe && rememberMe.checked === false ? browserSessionPersistence : browserLocalPersistence
+    );
+}
 
 showPasswordButton?.addEventListener("click", () => {
     if (!passwordInput) return;
@@ -69,6 +82,7 @@ form?.addEventListener("submit", async (event) => {
     status.textContent = "Logging in...";
 
     try {
+        await applyPersistence();
         const userCredential = await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
         await reload(userCredential.user);
 
@@ -93,6 +107,7 @@ googleSignInButton?.addEventListener("click", async () => {
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
+        await applyPersistence();
         const result = await signInWithPopup(auth, provider);
 
         if (!result.user.emailVerified) {
