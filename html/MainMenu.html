@@ -328,9 +328,89 @@
           border-bottom: 1px solid var(--line);
         }
       }
+
+      /* Chat bubbles: preserve newlines and wrap long tokens/URLs */
+      .bubble {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      /* WebLLM model controls */
+      .model-select {
+        width: 100%;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--text);
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        font-size: 0.9rem;
+      }
+
+      .load-btn {
+        width: 100%;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+        cursor: pointer;
+      }
+
+      .load-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .progress-wrap {
+        display: none;
+        margin-top: 14px;
+      }
+
+      .progress-track {
+        height: 6px;
+        background: rgba(148, 163, 184, 0.15);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--primary), var(--success));
+        transition: width 0.2s ease;
+      }
+
+      .progress-text {
+        margin-top: 8px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+
+      /* Status pill states */
+      .status-dot.loading { background: var(--warning); }
+      .status-dot.error { background: #f87171; }
+
+      .status-pill.loading {
+        background: rgba(251, 191, 36, 0.08);
+        border-color: rgba(251, 191, 36, 0.25);
+        color: #fde68a;
+      }
+
+      .status-pill.error {
+        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.25);
+        color: #fca5a5;
+      }
+
+      textarea:disabled {
+        opacity: 0.6;
+      }
     </style>
   </head>
-  <body>
+  <body class="d-none">
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand" aria-label="StudentGPT workspace brand">
@@ -338,7 +418,7 @@
           <span>StudentGPT</span>
         </div>
 
-        <button class="new-chat" type="button">＋ New chat</button>
+        <button class="new-chat" type="button" id="newChatButton">＋ New chat</button>
 
         <div class="section-label">Recent</div>
         <ul class="history-list">
@@ -359,35 +439,23 @@
         </div>
 
         <div class="chat-area">
-          <div class="messages">
+          <div class="messages" id="messages">
             <div class="message-row assistant">
               <div class="bubble assistant">
-                Hello. I am ready to help with internet research, logic, mathematics, coding, documentation, and practical planning tasks.
-              </div>
-            </div>
-
-            <div class="message-row user">
-              <div class="bubble user">
-                Summarize the benefits of using a local AI gateway for a home server and explain how it helps privacy and deployment control.
-              </div>
-            </div>
-
-            <div class="message-row assistant">
-              <div class="bubble assistant">
-                A local AI gateway keeps the model close to your infrastructure, helping preserve privacy, reduce third-party data exposure, and provide predictable performance on your own hardware. It also gives you more control over model updates, deployment rules, and access management.
+                Hello. I am StudentGPT, running locally in your browser. Ask me about research, math, coding, or documentation. Pick a model on the right and press Send — the first run downloads the model into your browser and caches it.
               </div>
             </div>
           </div>
 
           <div class="composer">
             <div class="composer-box">
-              <textarea aria-label="Chat prompt" placeholder="Ask the assistant a question..."></textarea>
-              <button class="primary-btn" type="button">Send</button>
+              <textarea id="promptInput" aria-label="Chat prompt" placeholder="Ask the assistant a question... (Enter to send, Shift+Enter for a new line)"></textarea>
+              <button class="primary-btn" type="button" id="sendButton">Send</button>
             </div>
 
             <div class="composer-actions">
-              <span class="status-pill"><span class="status-dot"></span> Local gateway connected</span>
-              <span>Model: Qwen3-8B-Q4</span>
+              <span class="status-pill" id="statusPill"><span class="status-dot" id="statusDot"></span> <span id="statusText">Model not loaded</span></span>
+              <span>Model: <span id="currentModelLabel">—</span></span>
             </div>
           </div>
         </div>
@@ -395,34 +463,28 @@
 
       <aside class="right-panel">
         <div class="card">
-          <h4>Gateway status</h4>
-          <div class="gateway-status">
-            <span>Connected</span>
-            <span class="status-dot"></span>
+          <h4>Model</h4>
+          <select class="model-select" id="modelSelect" aria-label="Choose model"></select>
+          <button class="load-btn" type="button" id="loadModelButton">Load model</button>
+          <div class="progress-wrap" id="loadProgressWrap">
+            <div class="progress-track"><div class="progress-bar" id="loadProgressBar"></div></div>
+            <p class="progress-text" id="loadProgressText"></p>
           </div>
-          <p class="tiny" style="margin-top: 12px;">Endpoint: http://home-server.local:11434</p>
+          <p class="tiny" style="margin-top: 12px;">Runs in your browser via WebGPU. The first load downloads the model; it is then cached locally.</p>
         </div>
 
         <div class="card">
-          <h4>Available models</h4>
+          <h4>How it works</h4>
           <ul class="model-list">
-            <li><span>Qwen3-8B-Q4</span><span>✓</span></li>
-            <li><span>DeepSeek Coder</span><span>Cold</span></li>
-            <li><span>Gemma 7B</span><span>Cold</span></li>
-          </ul>
-        </div>
-
-        <div class="card">
-          <h4>Quick actions</h4>
-          <ul class="model-list">
-            <li><span>Research mode</span><span>↗</span></li>
-            <li><span>Math mode</span><span>∑</span></li>
-            <li><span>Code review</span><span>⌘</span></li>
+            <li><span>Inference</span><span>In-browser</span></li>
+            <li><span>Server</span><span>None</span></li>
+            <li><span>Privacy</span><span>On-device</span></li>
           </ul>
         </div>
       </aside>
     </div>
 
     <script type="module" src="../javascript/main-menu.js"></script>
+    <script type="module" src="../javascript/chat.js"></script>
   </body>
 </html>
