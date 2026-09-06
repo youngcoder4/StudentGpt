@@ -383,7 +383,7 @@
         <!-- SECTION 1: Email Entry -->
         <div id="emailSection" class="section active">
           <h1>Reset Password</h1>
-          <p class="auth-subtitle">Enter your email address and we'll send you a code to reset your password.</p>
+          <p class="auth-subtitle">Enter your email address and we'll send you a link to reset your password.</p>
 
           <form id="emailForm" novalidate>
             <div>
@@ -392,46 +392,24 @@
               <div id="emailFormError" class="validation-message d-none"></div>
             </div>
 
-            <button type="submit" class="submit-btn" id="sendCodeBtn">Send Reset Code</button>
+            <button type="submit" class="submit-btn" id="sendLinkBtn">Send reset link</button>
             <p id="emailStatus" class="status-message" aria-live="polite"></p>
           </form>
 
           <p class="switch-link">Remember your password? <a href="./Login.html">Log in</a></p>
         </div>
 
-        <!-- SECTION 2: Code Verification -->
-        <div id="codeSection" class="section">
-          <h1>Verify Code</h1>
-          <p class="auth-subtitle" id="codeSubtitle">Enter the 6-digit code sent to your email.</p>
-
-          <form id="codeForm" novalidate>
-            <div>
-              <label for="code1" class="form-label">Confirmation Code</label>
-              <div class="code-input-group" id="codeInputGroup">
-                <input type="text" class="code-input" id="code1" maxlength="1" placeholder="0" inputmode="numeric" />
-                <input type="text" class="code-input" id="code2" maxlength="1" placeholder="0" inputmode="numeric" />
-                <input type="text" class="code-input" id="code3" maxlength="1" placeholder="0" inputmode="numeric" />
-                <input type="text" class="code-input" id="code4" maxlength="1" placeholder="0" inputmode="numeric" />
-                <input type="text" class="code-input" id="code5" maxlength="1" placeholder="0" inputmode="numeric" />
-                <input type="text" class="code-input" id="code6" maxlength="1" placeholder="0" inputmode="numeric" />
-              </div>
-              <div id="codeError" class="validation-message d-none"></div>
-            </div>
-
-            <button type="submit" class="submit-btn" id="verifyCodeBtn">Verify Code</button>
-            <p id="codeStatus" class="status-message" aria-live="polite"></p>
-
-            <div class="timer" id="timerDisplay"></div>
-            <button type="button" class="resend-button" id="resendBtn" disabled>Resend Code</button>
-          </form>
-
-          <button type="button" class="back-btn" id="backToEmailBtn">Back</button>
+        <!-- SECTION 1b: Reset link sent -->
+        <div id="emailSentSection" class="section">
+          <h1>Check your email</h1>
+          <p class="auth-subtitle">We sent a password reset link to <span id="sentToEmail" class="fw-semibold"></span>. Open the email and follow the link to choose a new password. Use it soon &mdash; the link expires after a while.</p>
+          <a href="./Login.html" class="submit-btn" style="text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Back to Log in</a>
         </div>
 
-        <!-- SECTION 3: New Password -->
+        <!-- SECTION 2: New Password (opened from the reset link) -->
         <div id="passwordSection" class="section">
           <h1>Create New Password</h1>
-          <p class="auth-subtitle">Create a strong password for your account.</p>
+          <p class="auth-subtitle">Choose a strong new password for <span id="resetAccountEmail" class="fw-semibold"></span>.</p>
 
           <form id="newPasswordForm" novalidate>
             <div>
@@ -505,17 +483,25 @@
             <button type="submit" class="submit-btn" id="resetPasswordBtn" disabled>Reset Password</button>
             <p id="passwordStatus" class="status-message" aria-live="polite"></p>
           </form>
-
-          <button type="button" class="back-btn" id="backToCodeBtn">Back</button>
         </div>
 
-        <!-- SECTION 4: Success -->
+        <!-- SECTION 3: Success -->
         <div id="successSection" class="section">
           <h1>Password Reset Successful</h1>
           <p class="auth-subtitle">Your password has been successfully reset. You can now log in with your new password.</p>
 
           <a href="./Login.html" class="submit-btn" style="text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
             Go to Login
+          </a>
+        </div>
+
+        <!-- SECTION: Invalid / expired link -->
+        <div id="invalidSection" class="section">
+          <h1>Link expired</h1>
+          <p class="auth-subtitle">This password reset link is invalid or has already been used. Request a new one and try again.</p>
+
+          <a href="./ForgetUserPass.html" class="submit-btn" style="text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
+            Request a new link
           </a>
         </div>
       </div>

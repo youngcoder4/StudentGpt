@@ -1,49 +1,41 @@
-// Firebase modules are loaded from Firebase's browser CDN.
+// Firebase password reset, done the way Firebase actually works:
+//   1. User enters their email -> sendPasswordResetEmail() emails them a link.
+//   2. The link (Firebase's action handler, or this page if you set a custom
+//      Action URL in the Firebase Console) reopens with ?mode=resetPassword&oobCode=...
+//   3. We verify the oobCode, collect a new password, and confirmPasswordReset().
+// There is no 6-digit code: Firebase never sends one for password resets.
 // @ts-ignore - URL module declarations are not included with TypeScript.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-// @ts-ignore - URL module declarations are not included with TypeScript.
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-analytics.js";
 // @ts-ignore - URL module declarations are not included with TypeScript.
 import {
     getAuth,
     sendPasswordResetEmail,
-    confirmPasswordReset,
-    verifyPasswordResetCode
+    verifyPasswordResetCode,
+    confirmPasswordReset
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { firebaseConfig, getFriendlyFirebaseError } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-try {
-    getAnalytics(app);
-} catch (error) {
-    console.warn("Firebase Analytics is unavailable in this browser.", error);
-}
-
-// DOM Elements
+// ---- Sections ----
 const emailSection = document.getElementById("emailSection");
-const codeSection = document.getElementById("codeSection");
+const emailSentSection = document.getElementById("emailSentSection");
 const passwordSection = document.getElementById("passwordSection");
 const successSection = document.getElementById("successSection");
+const invalidSection = document.getElementById("invalidSection");
 
+// ---- Email step ----
 const emailForm = document.getElementById("emailForm");
-const codeForm = document.getElementById("codeForm");
-const newPasswordForm = document.getElementById("newPasswordForm");
-
 const resetEmailInput = document.getElementById("resetEmail");
-const sendCodeBtn = document.getElementById("sendCodeBtn");
+const sendLinkBtn = document.getElementById("sendLinkBtn");
 const emailStatus = document.getElementById("emailStatus");
 const emailFormError = document.getElementById("emailFormError");
+const sentToEmail = document.getElementById("sentToEmail");
 
-const codeInputs = document.querySelectorAll(".code-input");
-const verifyCodeBtn = document.getElementById("verifyCodeBtn");
-const codeStatus = document.getElementById("codeStatus");
-const codeError = document.getElementById("codeError");
-const resendBtn = document.getElementById("resendBtn");
-const timerDisplay = document.getElementById("timerDisplay");
-const backToEmailBtn = document.getElementById("backToEmailBtn");
-
+// ---- New password step ----
+const newPasswordForm = document.getElementById("newPasswordForm");
+const resetAccountEmail = document.getElementById("resetAccountEmail");
 const newPasswordInput = document.getElementById("newPassword");
 const confirmPasswordInput = document.getElementById("confirmPassword");
 const showNewPassword = document.getElementById("showNewPassword");
@@ -52,17 +44,13 @@ const resetPasswordBtn = document.getElementById("resetPasswordBtn");
 const passwordStatus = document.getElementById("passwordStatus");
 const passwordError = document.getElementById("passwordError");
 const confirmPasswordError = document.getElementById("confirmPasswordError");
-const backToCodeBtn = document.getElementById("backToCodeBtn");
-
 const strengthMeter = document.getElementById("strengthMeter");
 const strengthText = document.getElementById("strengthText");
 
-// State
-let userEmail = "";
-let resetCode = "";
-let resendTimer = 0;
+// ---- State ----
+let activeOobCode = "";
 
-// ============ PASSWORD VALIDATION FUNCTIONS ============
+// ============ PASSWORD VALIDATION ============
 
 function checkPasswordRequirements(password) {
     return {
@@ -75,9 +63,7 @@ function checkPasswordRequirements(password) {
 }
 
 function getPasswordStrength(password) {
-    const reqs = checkPasswordRequirements(password);
-    const metCount = Object.values(reqs).filter(Boolean).length;
-
+    const metCount = Object.values(checkPasswordRequirements(password)).filter(Boolean).length;
     if (metCount <= 2) return "weak";
     if (metCount <= 3) return "medium";
     return "strong";
@@ -88,248 +74,101 @@ function isPasswordValid(password) {
     return reqs.length && reqs.uppercase && reqs.lowercase && reqs.number && reqs.special;
 }
 
-function updatePasswordStrength(password) {
-    if (!password) {
-        strengthText.textContent = "-";
-        strengthText.className = "strength-text";
-        const bars = strengthMeter.querySelectorAll(".strength-bar");
-        bars.forEach(bar => bar.className = "strength-bar");
-        return;
-    }
-
-    const strength = getPasswordStrength(password);
-    const reqs = checkPasswordRequirements(password);
-
-    // Update strength text and color
-    strengthText.textContent = strength.charAt(0).toUpperCase() + strength.slice(1);
-    strengthText.className = `strength-text ${strength}`;
-
-    // Update strength bars
-    const bars = strengthMeter.querySelectorAll(".strength-bar");
-    bars.forEach((bar, index) => {
-        bar.className = "strength-bar";
-        if (strength === "weak" && index === 0) {
-            bar.classList.add("weak");
-        } else if (strength === "medium" && index <= 1) {
-            bar.classList.add("medium");
-        } else if (strength === "strong" && index <= 2) {
-            bar.classList.add("strong");
-        }
-    });
-
-    // Update requirements checklist
-    updateRequirements(reqs);
-}
-
 function updateRequirements(reqs) {
-    const requirements = [
+    [
         { id: "req-length", met: reqs.length },
         { id: "req-uppercase", met: reqs.uppercase },
         { id: "req-lowercase", met: reqs.lowercase },
         { id: "req-number", met: reqs.number },
         { id: "req-special", met: reqs.special }
-    ];
-
-    requirements.forEach(req => {
+    ].forEach((req) => {
         const element = document.getElementById(req.id);
         const icon = document.getElementById(`${req.id}-icon`);
         if (element) {
             element.classList.toggle("met", req.met);
-            if (icon) {
-                icon.textContent = req.met ? "✓" : "○";
-            }
+            if (icon) icon.textContent = req.met ? "✓" : "○";
         }
     });
+}
 
-    // Enable/disable reset button
-    const allMet = Object.values(reqs).every(Boolean);
+function updatePasswordStrength(password) {
+    const bars = strengthMeter ? strengthMeter.querySelectorAll(".strength-bar") : [];
+
+    if (!password) {
+        if (strengthText) {
+            strengthText.textContent = "-";
+            strengthText.className = "strength-text";
+        }
+        bars.forEach((bar) => (bar.className = "strength-bar"));
+        updateRequirements(checkPasswordRequirements(""));
+        return;
+    }
+
+    const strength = getPasswordStrength(password);
+    if (strengthText) {
+        strengthText.textContent = strength.charAt(0).toUpperCase() + strength.slice(1);
+        strengthText.className = `strength-text ${strength}`;
+    }
+    bars.forEach((bar, index) => {
+        bar.className = "strength-bar";
+        if (strength === "weak" && index === 0) bar.classList.add("weak");
+        else if (strength === "medium" && index <= 1) bar.classList.add("medium");
+        else if (strength === "strong" && index <= 2) bar.classList.add("strong");
+    });
+    updateRequirements(checkPasswordRequirements(password));
+}
+
+function refreshResetButton() {
+    const password = newPasswordInput?.value || "";
+    const confirm = confirmPasswordInput?.value || "";
     if (resetPasswordBtn) {
-        resetPasswordBtn.disabled = !allMet || !confirmPasswordInput?.value || newPasswordInput?.value !== confirmPasswordInput?.value;
+        resetPasswordBtn.disabled = !isPasswordValid(password) || !confirm || password !== confirm;
     }
 }
 
 // ============ SECTION NAVIGATION ============
 
 function showSection(section) {
-    emailSection.classList.remove("active");
-    codeSection.classList.remove("active");
-    passwordSection.classList.remove("active");
-    successSection.classList.remove("active");
-    section.classList.add("active");
+    [emailSection, emailSentSection, passwordSection, successSection, invalidSection].forEach((s) => {
+        s?.classList.remove("active");
+    });
+    section?.classList.add("active");
 }
 
-// ============ STEP 1: SEND RESET CODE ============
+// ============ STEP 1: SEND RESET LINK ============
 
-emailForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = resetEmailInput?.value;
+emailForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = resetEmailInput?.value.trim();
 
     if (!email) {
         emailFormError?.classList.remove("d-none");
-        emailFormError.textContent = "Please enter your email address.";
+        if (emailFormError) emailFormError.textContent = "Please enter your email address.";
         return;
     }
+    emailFormError?.classList.add("d-none");
 
-    if (sendCodeBtn) sendCodeBtn.disabled = true;
+    if (sendLinkBtn) sendLinkBtn.disabled = true;
     if (emailStatus) {
         emailStatus.className = "status-message text-muted";
-        emailStatus.textContent = "Sending reset code...";
+        emailStatus.textContent = "Sending reset link...";
     }
 
     try {
         await sendPasswordResetEmail(auth, email);
-        userEmail = email;
-
-        if (emailStatus) {
-            emailStatus.className = "status-message text-success";
-            emailStatus.textContent = "Code sent successfully! Check your email.";
-        }
-
-        setTimeout(() => {
-            showSection(codeSection);
-            startResendTimer();
-        }, 1500);
+        if (sentToEmail) sentToEmail.textContent = email;
+        showSection(emailSentSection);
     } catch (error) {
         if (emailStatus) {
             emailStatus.className = "status-message text-danger";
             emailStatus.textContent = getFriendlyFirebaseError(error);
         }
-        if (sendCodeBtn) sendCodeBtn.disabled = false;
+        if (sendLinkBtn) sendLinkBtn.disabled = false;
     }
 });
 
-// ============ STEP 2: CODE VERIFICATION ============
+// ============ STEP 2: SET NEW PASSWORD (reset-link mode) ============
 
-// Handle code input auto-advance
-codeInputs.forEach((input, index) => {
-    input.addEventListener("input", (e) => {
-        const value = e.target.value;
-
-        // Only allow digits
-        if (!/^\d*$/.test(value)) {
-            e.target.value = "";
-            return;
-        }
-
-        if (value.length === 1 && index < codeInputs.length - 1) {
-            codeInputs[index + 1].focus();
-        }
-
-        // Auto-submit if all fields filled
-        if (index === codeInputs.length - 1 && value.length === 1) {
-            const fullCode = Array.from(codeInputs).map(inp => inp.value).join("");
-            if (fullCode.length === 6) {
-                verifyCode();
-            }
-        }
-    });
-
-    input.addEventListener("keydown", (e) => {
-        if (e.key === "Backspace" && !input.value && index > 0) {
-            codeInputs[index - 1].focus();
-        }
-    });
-});
-
-function getFullCode() {
-    return Array.from(codeInputs).map(inp => inp.value).join("");
-}
-
-async function verifyCode() {
-    const code = getFullCode();
-
-    if (code.length !== 6) {
-        codeError?.classList.remove("d-none");
-        codeError.textContent = "Please enter all 6 digits.";
-        return;
-    }
-
-    if (verifyCodeBtn) verifyCodeBtn.disabled = true;
-    if (codeStatus) {
-        codeStatus.className = "status-message text-muted";
-        codeStatus.textContent = "Verifying code...";
-    }
-    codeError?.classList.add("d-none");
-
-    try {
-        // Verify the code is valid
-        await verifyPasswordResetCode(auth, code);
-        resetCode = code;
-
-        if (codeStatus) {
-            codeStatus.className = "status-message text-success";
-            codeStatus.textContent = "Code verified successfully!";
-        }
-
-        setTimeout(() => {
-            showSection(passwordSection);
-            newPasswordInput?.focus();
-        }, 1500);
-    } catch (error) {
-        if (codeStatus) {
-            codeStatus.className = "status-message text-danger";
-            codeStatus.textContent = "Invalid or expired code. Please try again.";
-        }
-        codeError?.classList.remove("d-none");
-        codeError.textContent = "The code you entered is incorrect.";
-        if (verifyCodeBtn) verifyCodeBtn.disabled = false;
-    }
-}
-
-codeForm?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    verifyCode();
-});
-
-// ============ RESEND CODE TIMER ============
-
-function startResendTimer() {
-    resendTimer = 60;
-    if (resendBtn) resendBtn.disabled = true;
-
-    const updateTimer = () => {
-        if (timerDisplay) {
-            timerDisplay.textContent = `Resend code in ${resendTimer}s`;
-        }
-
-        resendTimer--;
-        if (resendTimer < 0) {
-            if (resendBtn) resendBtn.disabled = false;
-            if (timerDisplay) timerDisplay.textContent = "";
-        } else {
-            setTimeout(updateTimer, 1000);
-        }
-    };
-
-    updateTimer();
-}
-
-resendBtn?.addEventListener("click", async () => {
-    if (resendBtn) resendBtn.disabled = true;
-    if (codeStatus) {
-        codeStatus.className = "status-message text-muted";
-        codeStatus.textContent = "Resending code...";
-    }
-
-    try {
-        await sendPasswordResetEmail(auth, userEmail);
-        if (codeStatus) {
-            codeStatus.className = "status-message text-success";
-            codeStatus.textContent = "Code resent successfully!";
-        }
-        startResendTimer();
-    } catch (error) {
-        if (codeStatus) {
-            codeStatus.className = "status-message text-danger";
-            codeStatus.textContent = getFriendlyFirebaseError(error);
-        }
-        if (resendBtn) resendBtn.disabled = false;
-    }
-});
-
-// ============ STEP 3: RESET PASSWORD ============
-
-// Show/hide password buttons
 showNewPassword?.addEventListener("click", () => {
     const isHidden = newPasswordInput?.type === "password";
     if (newPasswordInput) newPasswordInput.type = isHidden ? "text" : "password";
@@ -342,56 +181,42 @@ showConfirmPassword?.addEventListener("click", () => {
     showConfirmPassword.textContent = isHidden ? "🙈" : "👁";
 });
 
-// Password strength tracking
 newPasswordInput?.addEventListener("input", () => {
-    const password = newPasswordInput.value;
-    updatePasswordStrength(password);
+    updatePasswordStrength(newPasswordInput.value);
     passwordError?.classList.add("d-none");
-
-    // Check if passwords match
-    if (confirmPasswordInput?.value && password !== confirmPasswordInput.value) {
+    if (confirmPasswordInput?.value && newPasswordInput.value !== confirmPasswordInput.value) {
         confirmPasswordError?.classList.remove("d-none");
-        confirmPasswordError.textContent = "Passwords do not match.";
+        if (confirmPasswordError) confirmPasswordError.textContent = "Passwords do not match.";
     } else {
         confirmPasswordError?.classList.add("d-none");
     }
+    refreshResetButton();
 });
 
 confirmPasswordInput?.addEventListener("input", () => {
     const password = newPasswordInput?.value || "";
-    const confirm = confirmPasswordInput.value;
-
-    if (password && confirm !== password) {
+    if (password && confirmPasswordInput.value !== password) {
         confirmPasswordError?.classList.remove("d-none");
-        confirmPasswordError.textContent = "Passwords do not match.";
+        if (confirmPasswordError) confirmPasswordError.textContent = "Passwords do not match.";
     } else {
         confirmPasswordError?.classList.add("d-none");
     }
-
-    // Check if button should be enabled
-    const passwordValid = isPasswordValid(password);
-    const passwordsMatch = password === confirm;
-    if (resetPasswordBtn) {
-        resetPasswordBtn.disabled = !passwordValid || !passwordsMatch || !password || !confirm;
-    }
+    refreshResetButton();
 });
 
-newPasswordForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
+newPasswordForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
     const password = newPasswordInput?.value || "";
     const confirm = confirmPasswordInput?.value || "";
 
-    // Final validation
     if (!isPasswordValid(password)) {
         passwordError?.classList.remove("d-none");
-        passwordError.textContent = "Password does not meet all requirements.";
+        if (passwordError) passwordError.textContent = "Password does not meet all requirements.";
         return;
     }
-
     if (password !== confirm) {
         confirmPasswordError?.classList.remove("d-none");
-        confirmPasswordError.textContent = "Passwords do not match.";
+        if (confirmPasswordError) confirmPasswordError.textContent = "Passwords do not match.";
         return;
     }
 
@@ -402,17 +227,8 @@ newPasswordForm?.addEventListener("submit", async (e) => {
     }
 
     try {
-        // Confirm the password reset with the code
-        await confirmPasswordReset(auth, resetCode, password);
-
-        if (passwordStatus) {
-            passwordStatus.className = "status-message text-success";
-            passwordStatus.textContent = "Password reset successfully!";
-        }
-
-        setTimeout(() => {
-            showSection(successSection);
-        }, 1500);
+        await confirmPasswordReset(auth, activeOobCode, password);
+        showSection(successSection);
     } catch (error) {
         if (passwordStatus) {
             passwordStatus.className = "status-message text-danger";
@@ -422,24 +238,32 @@ newPasswordForm?.addEventListener("submit", async (e) => {
     }
 });
 
-// ============ BACK BUTTONS ============
+// ============ ROUTING: email step vs reset-link step ============
 
-backToEmailBtn?.addEventListener("click", () => {
-    // Clear code inputs
-    codeInputs.forEach(input => input.value = "");
+async function init() {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const oobCode = params.get("oobCode");
+
+    // Arrived from the reset email link.
+    if (mode === "resetPassword" && oobCode) {
+        try {
+            const email = await verifyPasswordResetCode(auth, oobCode);
+            activeOobCode = oobCode;
+            if (resetAccountEmail) resetAccountEmail.textContent = email;
+            updatePasswordStrength("");
+            refreshResetButton();
+            showSection(passwordSection);
+            newPasswordInput?.focus();
+        } catch (error) {
+            console.warn("Invalid or expired reset link.", error);
+            showSection(invalidSection);
+        }
+        return;
+    }
+
+    // Normal entry: ask for the email address.
     showSection(emailSection);
-    clearTimers();
-});
-
-backToCodeBtn?.addEventListener("click", () => {
-    // Clear password inputs
-    if (newPasswordInput) newPasswordInput.value = "";
-    if (confirmPasswordInput) confirmPasswordInput.value = "";
-    updatePasswordStrength("");
-    showSection(codeSection);
-});
-
-function clearTimers() {
-    // Stop any active timers
-    resendTimer = -1;
 }
+
+init();
