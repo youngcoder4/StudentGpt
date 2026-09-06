@@ -8,10 +8,7 @@ import {
     getAuth,
     sendPasswordResetEmail,
     confirmPasswordReset,
-    verifyPasswordResetCode,
-    updatePassword,
-    signInWithEmailAndPassword,
-    Auth
+    verifyPasswordResetCode
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { firebaseConfig, getFriendlyFirebaseError } from "./firebase-config.js";
 
