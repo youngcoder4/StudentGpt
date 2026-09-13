@@ -247,6 +247,24 @@
         text-decoration: none;
       }
 
+      .remember-me {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .remember-me input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary);
+        cursor: pointer;
+      }
+
       @media (max-width: 640px) {
         .back-button-container {
           top: 12px;
@@ -303,6 +321,11 @@
               <div id="passwordError" class="validation-message d-none">You didn't fill out this option.</div>
             </div>
 
+            <label class="remember-me">
+              <input type="checkbox" id="rememberMe" checked />
+              <span>Keep me signed in on this device</span>
+            </label>
+
             <button type="submit" class="submit-btn">Log in</button>
             <p id="loginStatus" class="status-message" aria-live="polite"></p>
           </form>
@@ -314,5 +337,6 @@
     </main>
 
     <script type="module" src="../javascript/signin.js"></script>
+    <script src="../javascript/cookie-consent.js" defer></script>
   </body>
 </html>

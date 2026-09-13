@@ -1,9 +1,26 @@
 // In-browser AI chat powered by WebLLM (WebGPU). No server, no API key.
 // The model runs entirely in the visitor's browser; weights are downloaded
 // from the WebLLM/Hugging Face CDN on first use and cached locally afterwards.
-// Conversations are stored per-browser in localStorage (create/switch/delete).
+// Conversations persist per-account in Cloud Firestore when signed in, with a
+// localStorage cache/fallback; supports create, switch, and delete.
 // @ts-ignore - URL module declarations are not included with TypeScript.
 import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.84";
+// @ts-ignore - URL module declarations are not included with TypeScript.
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+// @ts-ignore - URL module declarations are not included with TypeScript.
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+// @ts-ignore - URL module declarations are not included with TypeScript.
+import {
+    getFirestore,
+    collection,
+    doc,
+    getDocs,
+    setDoc,
+    deleteDoc,
+    query,
+    orderBy
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
 
 // Curated models, ordered from lightest to heaviest. Sizes are approximate
 // first-download sizes; everything is cached in the browser after that.
@@ -79,6 +96,64 @@ function saveConversations() {
     }
 }
 
+// ---- Cloud sync (Cloud Firestore, keyed by the signed-in user's uid) ----
+// localStorage above stays as an instant cache/offline fallback; Firestore is
+// the source of truth for a signed-in account so chats follow it across devices.
+let db = null;
+let currentUid = null;
+
+function conversationDoc(id) {
+    return doc(db, "users", currentUid, "conversations", id);
+}
+
+function syncToCloud(convo) {
+    // Only persist real (non-empty) conversations, so we never store blank "New chat"s.
+    if (!db || !currentUid || !convo || !convo.messages.length) return;
+    setDoc(conversationDoc(convo.id), {
+        title: convo.title || "New chat",
+        messages: convo.messages,
+        updatedAt: convo.updatedAt || Date.now()
+    }).catch((error) => console.warn("Firestore save failed (kept in local cache).", error));
+}
+
+function deleteFromCloud(id) {
+    if (!db || !currentUid) return;
+    deleteDoc(conversationDoc(id)).catch((error) => console.warn("Firestore delete failed.", error));
+}
+
+async function loadFromCloud() {
+    if (!db || !currentUid) return;
+    try {
+        const snapshot = await getDocs(
+            query(collection(db, "users", currentUid, "conversations"), orderBy("updatedAt", "desc"))
+        );
+        const cloud = [];
+        snapshot.forEach((entry) => {
+            const data = entry.data() || {};
+            cloud.push({
+                id: entry.id,
+                title: data.title || "New chat",
+                messages: Array.isArray(data.messages) ? data.messages : [],
+                updatedAt: data.updatedAt || 0
+            });
+        });
+
+        if (cloud.length) {
+            // Signed-in account already has chats: cloud is the source of truth.
+            conversations = cloud;
+            if (!activeConversation()) activeId = conversations[0].id;
+            saveConversations();
+            renderHistory();
+            renderMessages();
+        } else {
+            // First time on this account: migrate any local conversations up.
+            conversations.filter((c) => c.messages.length).forEach(syncToCloud);
+        }
+    } catch (error) {
+        console.warn("Firestore load failed; using local cache.", error);
+    }
+}
+
 function activeConversation() {
     return conversations.find((c) => c.id === activeId) || null;
 }
@@ -114,6 +189,7 @@ function selectConversation(id) {
 
 function deleteConversation(id) {
     conversations = conversations.filter((c) => c.id !== id);
+    deleteFromCloud(id);
     if (activeId === id) activeId = conversations[0]?.id || null;
     if (!conversations.length) {
         createConversation(); // always keep one conversation around
@@ -320,6 +396,7 @@ async function sendMessage() {
         convo.messages.push({ role: "assistant", content: stripThink(raw) });
         convo.updatedAt = Date.now();
         saveConversations();
+        syncToCloud(convo);
         setStatus("ready", "Model ready · runs in your browser");
     } catch (error) {
         console.error("Generation failed", error);
@@ -360,6 +437,19 @@ function init() {
     // Conversation UI is always available, even without WebGPU (read saved chats).
     initConversations();
     newChatButton?.addEventListener("click", createConversation);
+
+    // When a verified user is signed in, load/save conversations to Firestore so
+    // they're tied to the account. Reuses the app main-menu.js already created.
+    try {
+        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        onAuthStateChanged(getAuth(app), (user) => {
+            currentUid = user && user.emailVerified ? user.uid : null;
+            if (currentUid) loadFromCloud();
+        });
+    } catch (error) {
+        console.warn("Firestore unavailable; conversations stay in local cache.", error);
+    }
 
     if (!("gpu" in navigator)) {
         setStatus("error", "WebGPU not supported");
