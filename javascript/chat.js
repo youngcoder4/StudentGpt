@@ -59,6 +59,7 @@ const statusPill = document.querySelector("#statusPill");
 const statusDot = document.querySelector("#statusDot");
 const statusText = document.querySelector("#statusText");
 const currentModelLabel = document.querySelector("#currentModelLabel");
+const syncStatusEl = document.querySelector("#syncStatus");
 
 // ---- WebLLM state ----
 let engine = null;
@@ -69,6 +70,7 @@ let isGenerating = false;
 // ---- Conversation state ----
 let conversations = []; // [{ id, title, messages: [{role, content}], updatedAt }]
 let activeId = null;
+let confirmingDeleteId = null; // conversation whose delete is awaiting a confirm click
 
 // ============ STORAGE ============
 
@@ -106,19 +108,38 @@ function conversationDoc(id) {
     return doc(db, "users", currentUid, "conversations", id);
 }
 
+// Small "Syncing… / Synced" indicator next to the Recent header.
+function setSync(state, text) {
+    if (!syncStatusEl) return;
+    syncStatusEl.textContent = text || "";
+    syncStatusEl.className = "sync-status" + (state ? " " + state : "");
+}
+
 function syncToCloud(convo) {
     // Only persist real (non-empty) conversations, so we never store blank "New chat"s.
     if (!db || !currentUid || !convo || !convo.messages.length) return;
+    setSync("syncing", "Syncing…");
     setDoc(conversationDoc(convo.id), {
         title: convo.title || "New chat",
         messages: convo.messages,
         updatedAt: convo.updatedAt || Date.now()
-    }).catch((error) => console.warn("Firestore save failed (kept in local cache).", error));
+    })
+        .then(() => setSync("synced", "Synced"))
+        .catch((error) => {
+            console.warn("Firestore save failed (kept in local cache).", error);
+            setSync("failed", "Sync failed");
+        });
 }
 
 function deleteFromCloud(id) {
     if (!db || !currentUid) return;
-    deleteDoc(conversationDoc(id)).catch((error) => console.warn("Firestore delete failed.", error));
+    setSync("syncing", "Syncing…");
+    deleteDoc(conversationDoc(id))
+        .then(() => setSync("synced", "Synced"))
+        .catch((error) => {
+            console.warn("Firestore delete failed.", error);
+            setSync("failed", "Sync failed");
+        });
 }
 
 async function loadFromCloud() {
@@ -145,12 +166,16 @@ async function loadFromCloud() {
             saveConversations();
             renderHistory();
             renderMessages();
+            setSync("synced", "Synced");
         } else {
             // First time on this account: migrate any local conversations up.
-            conversations.filter((c) => c.messages.length).forEach(syncToCloud);
+            const localChats = conversations.filter((c) => c.messages.length);
+            localChats.forEach(syncToCloud);
+            if (!localChats.length) setSync("synced", "Synced");
         }
     } catch (error) {
         console.warn("Firestore load failed; using local cache.", error);
+        setSync("failed", "Offline");
     }
 }
 
@@ -170,6 +195,7 @@ function titleFrom(text) {
 // ============ CONVERSATION MANAGEMENT ============
 
 function createConversation() {
+    confirmingDeleteId = null;
     const convo = { id: newId(), title: "New chat", messages: [], updatedAt: Date.now() };
     conversations.unshift(convo);
     activeId = convo.id;
@@ -223,18 +249,33 @@ function renderHistory() {
         title.textContent = convo.title || "New chat";
         li.appendChild(title);
 
+        const awaitingConfirm = confirmingDeleteId === convo.id;
         const del = document.createElement("button");
-        del.className = "history-delete";
+        del.className = "history-delete" + (awaitingConfirm ? " confirm" : "");
         del.type = "button";
-        del.textContent = "×";
-        del.title = "Delete conversation";
-        del.setAttribute("aria-label", "Delete conversation");
+        del.textContent = awaitingConfirm ? "Delete?" : "×";
+        del.title = awaitingConfirm ? "Click again to confirm" : "Delete conversation";
+        del.setAttribute("aria-label", awaitingConfirm ? "Confirm delete" : "Delete conversation");
         li.appendChild(del);
 
-        li.addEventListener("click", () => selectConversation(convo.id));
+        li.addEventListener("click", () => {
+            // Clicking a conversation cancels any pending delete confirmation.
+            if (confirmingDeleteId) {
+                confirmingDeleteId = null;
+                renderHistory();
+            }
+            selectConversation(convo.id);
+        });
         del.addEventListener("click", (event) => {
             event.stopPropagation();
-            deleteConversation(convo.id);
+            if (confirmingDeleteId === convo.id) {
+                confirmingDeleteId = null;
+                deleteConversation(convo.id);
+            } else {
+                // First click arms the confirm; second click (on "Delete?") removes it.
+                confirmingDeleteId = convo.id;
+                renderHistory();
+            }
         });
 
         historyList.appendChild(li);

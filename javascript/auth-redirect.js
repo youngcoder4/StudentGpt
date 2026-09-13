@@ -4,13 +4,23 @@
 // @ts-ignore - URL module declarations are not included with TypeScript.
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 // @ts-ignore - URL module declarations are not included with TypeScript.
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import {
+    getAuth,
+    onAuthStateChanged,
+    setPersistence,
+    browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-onAuthStateChanged(getAuth(app), (user) => {
-    if (user && user.emailVerified) {
-        window.location.replace("./MainMenu.html");
-    }
-});
+setPersistence(auth, browserLocalPersistence)
+    .catch((error) => console.warn("Auth persistence unavailable.", error))
+    .finally(() => {
+        onAuthStateChanged(auth, (user) => {
+            if (user && user.emailVerified) {
+                window.location.replace("./MainMenu.html");
+            }
+        });
+    });

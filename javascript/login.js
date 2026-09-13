@@ -9,6 +9,8 @@ import {
     createUserWithEmailAndPassword,
     sendEmailVerification,
     updateProfile,
+    setPersistence,
+    browserLocalPersistence,
     GoogleAuthProvider,
     signInWithPopup
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
@@ -16,6 +18,15 @@ import { firebaseConfig, getFriendlyFirebaseError } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+// Force localStorage-backed sessions so login survives closing the browser,
+// even where IndexedDB (Firebase's default) is blocked and would fall back to
+// in-memory (which is lost on exit).
+function ensureLocalPersistence() {
+    return setPersistence(auth, browserLocalPersistence).catch((error) =>
+        console.warn("Auth persistence unavailable; session may not survive restart.", error)
+    );
+}
 
 try {
     getAnalytics(app);
@@ -94,6 +105,7 @@ form?.addEventListener("submit", async (event) => {
     status.textContent = "Creating your account...";
 
     try {
+        await ensureLocalPersistence();
         const userCredential = await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
         await updateProfile(userCredential.user, { displayName: usernameInput.value });
         localStorage.setItem("userPhone", phoneInput.value);
@@ -110,6 +122,7 @@ googleSignUpButton?.addEventListener("click", async () => {
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
+        await ensureLocalPersistence();
         const result = await signInWithPopup(auth, provider);
         await updateProfile(result.user, {
             displayName: result.user.displayName || usernameInput?.value || "Google User"

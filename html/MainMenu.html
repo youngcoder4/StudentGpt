@@ -456,6 +456,29 @@
         background: transparent;
         border: none;
       }
+
+      /* Delete confirmation state on a history item */
+      .history-delete.confirm {
+        opacity: 1;
+        background: rgba(248, 113, 113, 0.18);
+        color: #fca5a5;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 8px;
+      }
+
+      /* Firestore sync indicator next to the Recent header */
+      .sync-status {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin-left: 6px;
+      }
+      .sync-status.syncing { color: var(--warning); }
+      .sync-status.synced { color: var(--success); }
+      .sync-status.failed { color: #f87171; }
     </style>
   </head>
   <body class="d-none">
@@ -468,7 +491,7 @@
 
         <button class="new-chat" type="button" id="newChatButton">＋ New chat</button>
 
-        <div class="section-label">Recent</div>
+        <div class="section-label">Recent <span id="syncStatus" class="sync-status"></span></div>
         <ul class="history-list" id="historyList"></ul>
       </aside>
 
