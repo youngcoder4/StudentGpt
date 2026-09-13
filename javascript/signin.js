@@ -129,11 +129,13 @@ googleSignInButton?.addEventListener("click", async () => {
 });
 
 onAuthStateChanged(auth, async (user) => {
-    if (!user || !user.emailVerified) {
-        if (user) await signOut(auth);
+    if (!user) return;
+    if (!user.emailVerified) {
+        await signOut(auth);
         return;
     }
-    document.body.classList.remove("d-none");
+    // Already signed in and verified (persisted session) -> go to the workspace.
+    window.location.replace("./MainMenu.html");
 });
 
 void getRedirectResult(auth).catch((error) => {
